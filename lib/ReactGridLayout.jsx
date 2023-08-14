@@ -59,6 +59,10 @@ type State = {
 
 import type { Props, DefaultProps } from "./ReactGridLayoutPropTypes";
 
+const NORTH_DIRECTIONS = ["nw", "n", "ne"];
+const WEST_DIRECTIONS = ["sw", "w", "nw"];
+const NORTH_WEST_DIRECTIONS = [...NORTH_DIRECTIONS, ...WEST_DIRECTIONS];
+
 // End Types
 
 const layoutClassName = "react-grid-layout";
@@ -400,19 +404,18 @@ export default class ReactGridLayout extends React.Component<Props, State> {
     i,
     w,
     h,
-    { e, node, size, handle }
+    { e, node, handle }
   ) => {
-    const { oldResizeItem } = this.state;
-    let { layout } = this.state;
+    const { oldResizeItem, layout } = this.state;
     const { cols, preventCollision, allowOverlap } = this.props;
 
-    const [newLayout, l] = withLayoutItem(layout, i, l => {
+    const [newLayout, l] = withLayoutItem(layout, i, pos => {
       // Something like quad tree should be used
       // to find collisions faster
       let hasCollisions;
       if (preventCollision && !allowOverlap) {
-        const collisions = getAllCollisions(layout, { ...l, w, h }).filter(
-          layoutItem => layoutItem.i !== l.i
+        const collisions = getAllCollisions(layout, { ...pos, w, h }).filter(
+          layoutItem => layoutItem.i !== pos.i
         );
         hasCollisions = collisions.length > 0;
 
@@ -422,28 +425,39 @@ export default class ReactGridLayout extends React.Component<Props, State> {
           let leastX = Infinity,
             leastY = Infinity;
           collisions.forEach(layoutItem => {
-            if (layoutItem.x > l.x) leastX = Math.min(leastX, layoutItem.x);
-            if (layoutItem.y > l.y) leastY = Math.min(leastY, layoutItem.y);
+            if (layoutItem.x > pos.x) leastX = Math.min(leastX, layoutItem.x);
+            if (layoutItem.y > pos.y) leastY = Math.min(leastY, layoutItem.y);
           });
 
-          if (Number.isFinite(leastX)) l.w = leastX - l.x;
-          if (Number.isFinite(leastY)) l.h = leastY - l.y;
+          if (Number.isFinite(leastX)) pos.w = leastX - pos.x;
+          if (Number.isFinite(leastY)) pos.h = leastY + pos.y;
         }
       }
 
-      return l;
+      return pos;
     });
+
     let finalLayout;
-    if (["sw","w","nw","n","ne"].indexOf(handle) !== -1) {
+    const atXBoundary = l.x === 0;
+    const atYBoundary = l.y === 0;
+    const isNorthOrWest = NORTH_WEST_DIRECTIONS.indexOf(handle) !== -1;
+    const isNorth = NORTH_DIRECTIONS.indexOf(handle) !== -1;
+    const isWest = WEST_DIRECTIONS.indexOf(handle) !== -1;
+    console.log(l, isNorthOrWest, isNorth, isWest, atXBoundary, atYBoundary, handle, allowOverlap)
+    if (
+      isNorthOrWest &&
+      ((isWest && !atXBoundary) || (isNorth && !atYBoundary))
+    ) {
+      console.log("move element", isWest, atXBoundary, isNorth, atYBoundary);
       let x = l.x;
       let y = l.y;
-      if (["sw","nw","w"].indexOf(handle) !== -1) {
+      if (isWest) {
         x = l.x + (l.w - w);
         w = l.x !== x && x < 0 ? l.w : w;
         x = x < 0 ? 0 : x;
       }
 
-      if (["ne","n","nw"].indexOf(handle) !== -1) {
+      if (isNorth) {
         y = l.y + (l.h - h);
         h = l.y !== y && y < 0 ? l.h : h;
         y = y < 0 ? 0 : y;
@@ -464,10 +478,14 @@ export default class ReactGridLayout extends React.Component<Props, State> {
         cols,
         allowOverlap
       );
+    } else if (isNorthOrWest &&
+      ((isWest && atXBoundary) || (isNorth && atYBoundary))) {
+        console.log('leave', newLayout, layout);
+      finalLayout = layout;
     } else {
       l.w = w;
       l.h = h;
-      finalLayout = newLayout
+      finalLayout = newLayout;
     }
 
     // Shouldn't ever happen, but typechecking makes it necessary

@@ -390,6 +390,7 @@ export default class GridItem extends React.Component<Props, State> {
       Math.min(maxes.width, maxWidth),
       Math.min(maxes.height, Infinity)
     ];
+    console.log("position", position);
     return (
       <Resizable
         // These are opts for the resize handle itself

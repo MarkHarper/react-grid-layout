@@ -7,7 +7,7 @@ const ReactGridLayout = WidthProvider(RGL);
 export default class ResizableHandles extends React.PureComponent {
   static defaultProps = {
     className: "layout",
-    items: 20,
+    items: 1,
     rowHeight: 30,
     onLayoutChange: function() {},
     cols: 12
